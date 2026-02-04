@@ -17,26 +17,15 @@ export default function ContractsPage() {
   const [year, setYear] = useState("all");
   const [status, setStatus] = useState("all");
   const [grade, setGrade] = useState("all");
-  const [country, setCountry] = useState("all");
-  const [factory, setFactory] = useState("all");
 
   const filteredContracts = useMemo(() => {
     return contracts.filter((contract) => {
       const matchesYear = year === "all" || contract.year.toString() === year;
       const matchesStatus = status === "all" || contract.status === status;
-      const matchesGrade = grade === "all" || contract.grade === grade;
-      const matchesCountry =
-        country === "all" || contract.countryOfOrigin === country;
-      const matchesFactory = factory === "all" || contract.factory === factory;
-      return (
-        matchesYear &&
-        matchesStatus &&
-        matchesGrade &&
-        matchesCountry &&
-        matchesFactory
-      );
+      const matchesGrade = grade === "all" || contract.gradeName === grade;
+      return matchesYear && matchesStatus && matchesGrade;
     });
-  }, [contracts, year, status, grade, country, factory]);
+  }, [contracts, year, status, grade]);
 
   return (
     <AppShell>
@@ -55,7 +44,7 @@ export default function ContractsPage() {
 
         <Card>
           <CardContent className="pt-6">
-            <div className="grid gap-4 md:grid-cols-5">
+            <div className="grid gap-4 md:grid-cols-3">
               <Select value={year} onValueChange={setYear}>
                 <SelectTrigger>
                   <SelectValue placeholder="Year" />
@@ -71,9 +60,9 @@ export default function ContractsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Draft">Draft</SelectItem>
                   <SelectItem value="Open">Open</SelectItem>
                   <SelectItem value="Closed">Closed</SelectItem>
-                  <SelectItem value="On Hold">On Hold</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={grade} onValueChange={setGrade}>
@@ -89,48 +78,26 @@ export default function ContractsPage() {
                   <SelectItem value="Robusta G2">Robusta G2</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={country} onValueChange={setCountry}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Country" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Countries</SelectItem>
-                  <SelectItem value="India">India</SelectItem>
-                  <SelectItem value="Vietnam">Vietnam</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={factory} onValueChange={setFactory}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Factory" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Factories</SelectItem>
-                  <SelectItem value="Mysuru Co-Op">Mysuru Co-Op</SelectItem>
-                  <SelectItem value="Da Nang Origin">Da Nang Origin</SelectItem>
-                  <SelectItem value="Kerala Beans">Kerala Beans</SelectItem>
-                  <SelectItem value="Hanoi Harvest">Hanoi Harvest</SelectItem>
-                  <SelectItem value="Coorg Estates">Coorg Estates</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </CardContent>
         </Card>
 
         <DataTable
           data={filteredContracts}
-          searchPlaceholder="Search contracts"
+          searchPlaceholder="Search by contract or buyer contract number"
           filterKey={(contract) =>
-            `${contract.contractNumber} ${contract.rcnContractNumber} ${contract.factory}`
+            `${contract.contractNumber} ${contract.rcnContractNumber}`
           }
           columns={[
             {
               key: "contract",
               header: "Contract",
+              sortValue: (contract) => contract.contractNumber,
               render: (contract) => (
                 <div>
                   <p className="text-sm font-medium">{contract.contractNumber}</p>
                   <p className="text-xs text-muted-foreground">
-                    {contract.rcnContractNumber}
+                    Buyer: {contract.rcnContractNumber}
                   </p>
                 </div>
               ),
@@ -138,9 +105,10 @@ export default function ContractsPage() {
             {
               key: "grade",
               header: "Grade",
+              sortValue: (contract) => contract.gradeName,
               render: (contract) => (
                 <div>
-                  <p className="text-sm">{contract.grade}</p>
+                  <p className="text-sm">{contract.gradeName}</p>
                   <p className="text-xs text-muted-foreground">
                     {contract.shipmentPeriod}
                   </p>
@@ -150,6 +118,7 @@ export default function ContractsPage() {
             {
               key: "qty",
               header: "Open Qty",
+              sortValue: (contract) => contract.openQty,
               render: (contract) => (
                 <div>
                   <p className="text-sm font-medium">
@@ -162,18 +131,9 @@ export default function ContractsPage() {
               ),
             },
             {
-              key: "origin",
-              header: "Origin",
-              render: (contract) => (
-                <div>
-                  <p className="text-sm">{contract.countryOfOrigin}</p>
-                  <p className="text-xs text-muted-foreground">{contract.factory}</p>
-                </div>
-              ),
-            },
-            {
               key: "status",
               header: "Status",
+              sortValue: (contract) => contract.status,
               render: (contract) => <StatusBadge status={contract.status} />,
             },
             {

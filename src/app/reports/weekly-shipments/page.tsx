@@ -12,26 +12,22 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/components/toast-provider";
-import { shipments } from "@/mock/shipments";
-import { weeklyEmailLog } from "@/mock/email-log";
+import { useContracts } from "@/context/contracts-context";
 
 export default function WeeklyShipmentsPage() {
   const { pushToast } = useToast();
-  const [emailLog, setEmailLog] = useState(weeklyEmailLog);
+  const { shipments, emailLog, addEmailLog } = useContracts();
   const [includeUpdatesOnly, setIncludeUpdatesOnly] = useState(true);
 
   const handleGenerated = (fileName: string) => {
-    setEmailLog((prev) => [
-      {
-        id: `e-${Date.now()}`,
-        buyer: "Nordic Roasters",
-        fileName,
-        date: new Date().toISOString().slice(0, 16).replace("T", " "),
-        status: "Sent",
-        retryCount: 0,
-      },
-      ...prev,
-    ]);
+    addEmailLog({
+      id: `e-${Date.now()}`,
+      buyer: "Nordic Roasters",
+      fileName,
+      date: new Date().toISOString().slice(0, 16).replace("T", " "),
+      status: "Sent",
+      retryCount: 0,
+    });
     pushToast({
       title: "CSV generated",
       description: "Weekly shipments report queued for email",
@@ -88,7 +84,7 @@ export default function WeeklyShipmentsPage() {
                   </Select>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Buyer Emails</p>
+                  <p className="text-xs font-medium text-muted-foreground">Buyer Recipients</p>
                   <Input defaultValue="buyer@coffee.com, ops@buyer.com" />
                 </div>
               </div>
@@ -102,7 +98,11 @@ export default function WeeklyShipmentsPage() {
               </label>
               <div className="flex items-center gap-2">
                 <CsvDownloadButton
-                  shipments={includeUpdatesOnly ? shipments.filter((s) => s.updatedIspPortal === "No") : shipments}
+                  shipments={
+                    includeUpdatesOnly
+                      ? shipments.filter((s) => s.updatedIspPortal)
+                      : shipments
+                  }
                   onGenerated={handleGenerated}
                 />
                 <Button variant="outline">Save Schedule</Button>

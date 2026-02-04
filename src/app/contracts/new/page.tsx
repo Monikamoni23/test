@@ -16,17 +16,22 @@ import { useContracts } from "@/context/contracts-context";
 
 const contractSchema = z.object({
   contractNumber: z.string().min(1, "Contract number is required"),
-  rcnContractNumber: z.string().min(1, "RCN contract number is required"),
+  rcnContractNumber: z.string().min(1, "Buyer contract number is required"),
   dateSigningContract: z.string().min(1, "Date is required"),
   year: z.string().min(4, "Year is required"),
-  grade: z.string().min(1, "Grade is required"),
+  gradeId: z.string().min(1, "Grade is required"),
   shipmentPeriod: z.string().min(1, "Shipment period is required"),
   incoterms: z.string().min(1, "Incoterms are required"),
   totalContractQuantityKgs: z.string().min(1, "Quantity is required"),
-  contractPriceUsdKgs: z.string().min(1, "Price is required"),
-  countryOfOrigin: z.string().min(1, "Country is required"),
-  factory: z.string().min(1, "Factory is required"),
 });
+
+const gradeOptions = [
+  { id: "g1", name: "Arabica G1" },
+  { id: "g2", name: "Arabica G2" },
+  { id: "g3", name: "Arabica G3" },
+  { id: "g4", name: "Robusta G1" },
+  { id: "g5", name: "Robusta G2" },
+];
 
 export default function ContractCreatePage() {
   const router = useRouter();
@@ -37,13 +42,11 @@ export default function ContractCreatePage() {
     rcnContractNumber: "",
     dateSigningContract: "",
     year: "2024",
-    grade: "",
+    gradeId: "",
+    gradeName: "",
     shipmentPeriod: "",
     incoterms: "",
     totalContractQuantityKgs: "",
-    contractPriceUsdKgs: "",
-    countryOfOrigin: "India",
-    factory: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -57,42 +60,27 @@ export default function ContractCreatePage() {
       setErrors(nextErrors);
       return;
     }
-    const quantity = Number(values.totalContractQuantityKgs);
-    const priceKgs = Number(values.contractPriceUsdKgs);
-    const newContractId = `c-${Date.now()}`;
 
-    addContract({
-      id: newContractId,
+    const newId = addContract({
       contractNumber: values.contractNumber,
       rcnContractNumber: values.rcnContractNumber,
       dateSigningContract: values.dateSigningContract,
       year: Number(values.year),
-      grade: values.grade,
+      gradeId: values.gradeId,
+      gradeName: values.gradeName,
       status: "Open",
       shipmentPeriod: values.shipmentPeriod,
       incoterms: values.incoterms,
-      contractPriceUsdMt: priceKgs * 1000,
-      contractPriceUsdLbs: priceKgs * 0.45,
-      contractPriceUsdKgs: priceKgs,
-      totalContractQuantityKgs: quantity,
-      totalContractValue: quantity * priceKgs,
-      shippedQuantityKgs: 0,
-      openQty: quantity,
-      openValue: quantity * priceKgs,
-      openBookQty: quantity,
-      openBookValue: quantity * priceKgs,
-      countryOfOrigin: values.countryOfOrigin,
-      factory: values.factory,
-      allocationSummary: "Pending allocation",
+      totalContractQuantityKgs: Number(values.totalContractQuantityKgs),
     });
 
     pushToast({
       title: "Contract created",
-      description: "Next: Allocate the contract quantities",
+      description: "Next: Allocate quantities per sub-contract",
       variant: "success",
     });
 
-    router.push(`/contracts/${newContractId}?tab=overview`);
+    router.push(`/contracts/${newId}?tab=sub-contracts`);
   };
 
   return (
@@ -100,7 +88,7 @@ export default function ContractCreatePage() {
       <div className="space-y-6">
         <Breadcrumbs items={[{ label: "Contracts", href: "/contracts" }, { label: "New" }]} />
         <div>
-          <h1 className="text-xl font-semibold">Create Contract</h1>
+          <h1 className="text-xl font-semibold">Create Master Contract</h1>
           <p className="text-sm text-muted-foreground">
             Capture master contract details for Phase-1 registration.
           </p>
@@ -111,16 +99,16 @@ export default function ContractCreatePage() {
             <div className="grid gap-6 lg:grid-cols-2">
               <FormField label="Contract Number" error={errors.contractNumber}>
                 <Input
-                  placeholder="CN-2024-013"
+                  placeholder="MC-2024-013"
                   value={values.contractNumber}
                   onChange={(event) =>
                     setValues((prev) => ({ ...prev, contractNumber: event.target.value }))
                   }
                 />
               </FormField>
-              <FormField label="RCN Contract Number" error={errors.rcnContractNumber}>
+              <FormField label="Buyer Contract Number" error={errors.rcnContractNumber}>
                 <Input
-                  placeholder="RCN-88913"
+                  placeholder="BUY-88913"
                   value={values.rcnContractNumber}
                   onChange={(event) =>
                     setValues((prev) => ({ ...prev, rcnContractNumber: event.target.value }))
@@ -144,17 +132,27 @@ export default function ContractCreatePage() {
                   }
                 />
               </FormField>
-              <FormField label="Grade" error={errors.grade}>
-                <Select value={values.grade} onValueChange={(value) => setValues((prev) => ({ ...prev, grade: value }))}>
+              <FormField label="Grade" error={errors.gradeId}>
+                <Select
+                  value={values.gradeId}
+                  onValueChange={(value) => {
+                    const selectedGrade = gradeOptions.find((grade) => grade.id === value);
+                    setValues((prev) => ({
+                      ...prev,
+                      gradeId: value,
+                      gradeName: selectedGrade?.name ?? "",
+                    }));
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select grade" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Arabica G1">Arabica G1</SelectItem>
-                    <SelectItem value="Arabica G2">Arabica G2</SelectItem>
-                    <SelectItem value="Arabica G3">Arabica G3</SelectItem>
-                    <SelectItem value="Robusta G1">Robusta G1</SelectItem>
-                    <SelectItem value="Robusta G2">Robusta G2</SelectItem>
+                    {gradeOptions.map((grade) => (
+                      <SelectItem key={grade.id} value={grade.id}>
+                        {grade.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </FormField>
@@ -168,7 +166,10 @@ export default function ContractCreatePage() {
                 />
               </FormField>
               <FormField label="Incoterms" error={errors.incoterms}>
-                <Select value={values.incoterms} onValueChange={(value) => setValues((prev) => ({ ...prev, incoterms: value }))}>
+                <Select
+                  value={values.incoterms}
+                  onValueChange={(value) => setValues((prev) => ({ ...prev, incoterms: value }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select incoterms" />
                   </SelectTrigger>
@@ -186,36 +187,6 @@ export default function ContractCreatePage() {
                   value={values.totalContractQuantityKgs}
                   onChange={(event) =>
                     setValues((prev) => ({ ...prev, totalContractQuantityKgs: event.target.value }))
-                  }
-                />
-              </FormField>
-              <FormField label="Contract Price USD (KGS)" error={errors.contractPriceUsdKgs}>
-                <Input
-                  type="number"
-                  placeholder="3.5"
-                  value={values.contractPriceUsdKgs}
-                  onChange={(event) =>
-                    setValues((prev) => ({ ...prev, contractPriceUsdKgs: event.target.value }))
-                  }
-                />
-              </FormField>
-              <FormField label="Country of Origin" error={errors.countryOfOrigin}>
-                <Select value={values.countryOfOrigin} onValueChange={(value) => setValues((prev) => ({ ...prev, countryOfOrigin: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select country" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="India">India</SelectItem>
-                    <SelectItem value="Vietnam">Vietnam</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormField>
-              <FormField label="Factory" error={errors.factory}>
-                <Input
-                  placeholder="Coorg Estates"
-                  value={values.factory}
-                  onChange={(event) =>
-                    setValues((prev) => ({ ...prev, factory: event.target.value }))
                   }
                 />
               </FormField>

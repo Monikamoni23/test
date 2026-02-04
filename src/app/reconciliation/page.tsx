@@ -8,10 +8,12 @@ import { FileUploadMock } from "@/components/file-upload-mock";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/toast-provider";
-import { reconciliationItems as seedItems } from "@/mock/reconciliation";
+import { reconciliationRows as seedItems } from "@/mock/reconciliation";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 
 export default function ReconciliationPage() {
@@ -33,6 +35,18 @@ export default function ReconciliationPage() {
       prev.map((item) =>
         item.id === id ? { ...item, status: "Resolved" } : item
       )
+    );
+  };
+
+  const handleAssign = (id: string, owner: string) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, owner } : item))
+    );
+  };
+
+  const handleNotes = (id: string, notes: string) => {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, notes } : item))
     );
   };
 
@@ -66,6 +80,7 @@ export default function ReconciliationPage() {
                     "Contract Number",
                     "Buyer Open Qty",
                     "Buyer Open Value",
+                    "Buyer Notes",
                   ].map((field) => (
                     <div key={field} className="grid grid-cols-2 items-center gap-2 text-sm">
                       <span>{field}</span>
@@ -77,6 +92,7 @@ export default function ReconciliationPage() {
                           <SelectItem value={field}>{field}</SelectItem>
                           <SelectItem value="System Open Qty">System Open Qty</SelectItem>
                           <SelectItem value="System Open Value">System Open Value</SelectItem>
+                          <SelectItem value="Contract Status">Contract Status</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -90,7 +106,21 @@ export default function ReconciliationPage() {
             <CardHeader>
               <CardTitle>Variance Table</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input placeholder="Search contract" />
+                <Select defaultValue="all">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="Matched">Matched</SelectItem>
+                    <SelectItem value="Mismatch">Mismatch</SelectItem>
+                    <SelectItem value="Resolved">Resolved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -100,6 +130,7 @@ export default function ReconciliationPage() {
                     <TableHead>Variance</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Owner</TableHead>
+                    <TableHead>Notes</TableHead>
                     <TableHead>Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -119,7 +150,29 @@ export default function ReconciliationPage() {
                       <TableCell>
                         <StatusBadge status={item.status} />
                       </TableCell>
-                      <TableCell>{item.owner}</TableCell>
+                      <TableCell>
+                        <Select
+                          value={item.owner}
+                          onValueChange={(value) => handleAssign(item.id, value)}
+                        >
+                          <SelectTrigger className="h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Priya Das">Priya Das</SelectItem>
+                            <SelectItem value="S&OP Desk">S&OP Desk</SelectItem>
+                            <SelectItem value="Logistics Ops">Logistics Ops</SelectItem>
+                            <SelectItem value="Mia Lopez">Mia Lopez</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="min-w-[220px]">
+                        <Textarea
+                          value={item.notes}
+                          onChange={(event) => handleNotes(item.id, event.target.value)}
+                          className="min-h-[60px]"
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline">

@@ -18,7 +18,7 @@ export default function DashboardPage() {
     0
   );
   const shipmentsThisWeek = shipments.filter(
-    (shipment) => shipment.status === "Shipped"
+    (shipment) => shipment.shipmentStatus === "Shipped"
   ).length;
   const variances = 4;
 
@@ -26,11 +26,11 @@ export default function DashboardPage() {
     <AppShell>
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          <KpiCard title="Total Contracts" value={totalContracts.toString()} />
+          <KpiCard title="Total Master Contracts" value={totalContracts.toString()} />
           <KpiCard title="Open Qty (KGS)" value={formatNumber(openQty)} />
           <KpiCard title="Open Value" value={formatCurrency(openValue)} />
           <KpiCard title="Shipments This Week" value={shipmentsThisWeek.toString()} />
-          <KpiCard title="Variances" value={variances.toString()} helper="Open reconciliation items" />
+          <KpiCard title="Open Variances" value={variances.toString()} helper="Reconciliation mismatches" />
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
@@ -40,8 +40,8 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-4 text-sm text-muted-foreground">
               <p>
-                Track contracts end-to-end: create master contracts, allocate by country,
-                add shipment advice updates, and reconcile buyer files in one flow.
+                Move from contract creation to auto-generated sub-contracts, shipment
+                advice updates, weekly reporting, and reconciliation in a single flow.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button asChild>
@@ -59,27 +59,19 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Priority Actions</CardTitle>
+              <CardTitle>Recent Activity</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
-              <div className="rounded-lg border border-dashed p-3">
-                <p className="text-xs font-semibold text-foreground">Upcoming shipments</p>
-                <p className="mt-1 text-xs">
-                  12 planned shipments awaiting booking confirmations.
-                </p>
-              </div>
-              <div className="rounded-lg border border-dashed p-3">
-                <p className="text-xs font-semibold text-foreground">Allocation review</p>
-                <p className="mt-1 text-xs">
-                  2 contracts pending allocation confirmation.
-                </p>
-              </div>
-              <div className="rounded-lg border border-dashed p-3">
-                <p className="text-xs font-semibold text-foreground">Reconciliation mismatches</p>
-                <p className="mt-1 text-xs">
-                  3 mismatches require assignment and resolution.
-                </p>
-              </div>
+              {[
+                "MC-2024-004 allocation confirmed · 2h ago",
+                "Shipment advice uploaded for MC-2024-001 · 4h ago",
+                "Weekly shipment CSV sent to Nordic Roasters · yesterday",
+                "Reconciliation mismatch assigned to S&OP · 2 days ago",
+              ].map((item) => (
+                <div key={item} className="rounded-lg border border-dashed p-3">
+                  {item}
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>

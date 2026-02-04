@@ -3,10 +3,10 @@
 import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { ShipmentAdvice } from "@/types";
+import type { Shipment } from "@/types";
 
 interface CsvDownloadButtonProps {
-  shipments: ShipmentAdvice[];
+  shipments: Shipment[];
   onGenerated?: (fileName: string) => void;
 }
 
@@ -14,7 +14,9 @@ export function CsvDownloadButton({ shipments, onGenerated }: CsvDownloadButtonP
   const handleDownload = () => {
     const headers = [
       "Contract",
+      "Sub-Contract",
       "Container Number",
+      "Country",
       "Factory",
       "Shipped Date",
       "BL No",
@@ -24,8 +26,10 @@ export function CsvDownloadButton({ shipments, onGenerated }: CsvDownloadButtonP
       "ETA Destination",
     ];
     const rows = shipments.map((shipment) => [
-      shipment.contractId,
+      shipment.masterContractId,
+      shipment.subContractId,
       shipment.containerNumber,
+      shipment.countryOfOrigin,
       shipment.factory,
       shipment.shippedDate || "Pending",
       shipment.blNo,

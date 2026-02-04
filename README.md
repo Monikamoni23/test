@@ -13,7 +13,9 @@ src/
       [id]/
     reports/weekly-shipments/
     reconciliation/
-    settings/master-data/
+    settings/
+      master-data/
+      pricing/
     login/
   components/
     ui/
@@ -32,11 +34,12 @@ src/
   lib/
     utils.ts
   mock/
-    allocations.ts
     contracts.ts
-    email-log.ts
-    reconciliation.ts
+    subContracts.ts
     shipments.ts
+    pricing.ts
+    reconciliation.ts
+    email-log.ts
   types/
     index.ts
 ```
@@ -61,11 +64,12 @@ npm run dev
 
 1. **Login**: Use any email/password on `/login` and sign in.
 2. **Create Contract**: Navigate to `/contracts/new`, fill in contract details, and submit.
-3. **Allocate**: On the contract detail page, open the Allocation tab and add allocation lines. Confirm allocation to lock it.
-4. **Shipments**: Add shipment advice lines using the drawer. Mark a shipment as shipped in the detail drawer.
-5. **Weekly CSV**: Visit `/reports/weekly-shipments` and click “Generate CSV Now” to download a mock CSV and add a log entry.
-6. **Reconciliation**: Go to `/reconciliation`, upload the mock buyer file, and mark a mismatch as resolved.
-7. **Master Data**: Review static master data on `/settings/master-data`.
+3. **Auto Sub-Contracts**: On the contract detail page, open the Sub-Contracts tab and allocate quantities for India/Vietnam.
+4. **Allocate & Confirm**: Confirm allocation once the total matches the master qty.
+5. **Shipments**: Add shipment advice lines using the drawer, then mark them as shipped.
+6. **Weekly CSV**: Visit `/reports/weekly-shipments` and click “Generate CSV Now” to download a mock CSV and add a log entry.
+7. **Reconciliation**: Go to `/reconciliation`, upload a mock buyer file, map fields, and mark a mismatch as resolved.
+8. **Pricing Master**: Review pricing master records on `/settings/pricing`.
 
 ## Notes
 
