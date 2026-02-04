@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
@@ -21,12 +21,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/toast-provider";
 import { useContracts } from "@/context/contracts-context";
 import { formatCurrency, formatNumber } from "@/lib/utils";
-import type { AllocationLine, ShipmentAdvice } from "@/types";
+import type { Shipment, SubContract } from "@/types";
 
 const shipmentSchema = z.object({
+  subContractId: z.string().min(1, "Sub-contract is required"),
   containerNumber: z.string().min(1, "Container number is required"),
   linerSealNumber: z.string().min(1, "Liner seal number is required"),
   factory: z.string().min(1, "Factory is required"),
+  shippedDate: z.string().min(1, "Shipped date is required"),
   blNo: z.string().min(1, "BL number is required"),
   vesselName: z.string().min(1, "Vessel name is required"),
   voyageDetails: z.string().min(1, "Voyage details are required"),
@@ -36,27 +38,57 @@ const shipmentSchema = z.object({
   qtyShippedKgs: z.string().min(1, "Quantity is required"),
 });
 
+const tabs = [
+  { label: "Overview", value: "overview" },
+  { label: "Sub-Contracts", value: "sub-contracts" },
+  { label: "Shipments", value: "shipments" },
+  { label: "Weekly Reports", value: "weekly-reports" },
+  { label: "Reconciliation", value: "reconciliation" },
+  { label: "Activity Log", value: "activity" },
+];
+
 export default function ContractDetailPage() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { contracts, allocations, shipments, updateAllocations, addShipment, markShipmentShipped } = useContracts();
+  const {
+    contracts,
+    subContracts,
+    shipments,
+    emailLog,
+    updateSubContracts,
+    addShipment,
+    markShipmentShipped,
+  } = useContracts();
   const { pushToast } = useToast();
   const contractId = params.id as string;
   const contract = contracts.find((item) => item.id === contractId);
 
   const tab = searchParams.get("tab") ?? "overview";
-  const [allocationDraft, setAllocationDraft] = useState<AllocationLine[]>(
-    allocations.filter((line) => line.contractId === contractId)
+  const contractSubContracts = subContracts.filter(
+    (line) => line.masterContractId === contractId
   );
-  const [allocationLocked, setAllocationLocked] = useState(false);
+  const contractShipments = shipments.filter(
+    (shipment) => shipment.masterContractId === contractId
+  );
+
+  const subContractLookup = useMemo(
+    () => new Map(contractSubContracts.map((line) => [line.id, line])),
+    [contractSubContracts]
+  );
+
+  const [allocationDraft, setAllocationDraft] = useState<SubContract[]>(
+    contractSubContracts
+  );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [shipmentOpen, setShipmentOpen] = useState(false);
-  const [selectedShipment, setSelectedShipment] = useState<ShipmentAdvice | null>(null);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [shipmentValues, setShipmentValues] = useState({
+    subContractId: "",
     containerNumber: "",
     linerSealNumber: "",
-    factory: contract?.factory ?? "",
+    factory: "",
+    shippedDate: "",
     blNo: "",
     vesselName: "",
     voyageDetails: "",
@@ -65,40 +97,62 @@ export default function ContractDetailPage() {
     etaDestination: "",
     qtyShippedKgs: "",
     comments: "",
+    note: "",
+    remark: "",
   });
   const [shipmentErrors, setShipmentErrors] = useState<Record<string, string>>({});
+  const [shipmentFilters, setShipmentFilters] = useState({
+    country: "all",
+    factory: "all",
+    status: "all",
+  });
 
-  const contractShipments = shipments.filter(
-    (shipment) => shipment.contractId === contractId
-  );
+  useEffect(() => {
+    setAllocationDraft(contractSubContracts);
+  }, [contractSubContracts]);
 
   const allocationTotal = allocationDraft.reduce(
     (sum, line) => sum + line.allocatedQtyKgs,
     0
   );
-  const allocationRemaining = contract
-    ? contract.totalContractQuantityKgs - allocationTotal
-    : 0;
+
+  const allocationLocked = allocationDraft.every((line) => line.isAllocationConfirmed);
+
+  const filteredShipments = contractShipments.filter((shipment) => {
+    const matchesCountry =
+      shipmentFilters.country === "all" ||
+      shipment.countryOfOrigin === shipmentFilters.country;
+    const matchesFactory =
+      shipmentFilters.factory === "all" ||
+      shipment.factory === shipmentFilters.factory;
+    const matchesStatus =
+      shipmentFilters.status === "all" ||
+      shipment.shipmentStatus === shipmentFilters.status;
+    return matchesCountry && matchesFactory && matchesStatus;
+  });
 
   const workflowSteps = useMemo(() => {
     return [
-      { label: "Create Contract", status: "complete" },
+      { label: "Create Master Contract", status: "complete" },
       {
-        label: "Allocate",
-        status: allocationLocked ? "complete" : tab === "allocation" ? "current" : "upcoming",
+        label: "Auto Create Sub-Contracts",
+        status: contractSubContracts.length > 0 ? "complete" : "current",
+      },
+      {
+        label: "Allocate Qty",
+        status: allocationLocked ? "complete" : tab === "sub-contracts" ? "current" : "upcoming",
       },
       {
         label: "Add Shipments",
-        status:
-          contractShipments.length > 0
-            ? "complete"
-            : tab === "shipments"
-            ? "current"
-            : "upcoming",
+        status: contractShipments.length > 0 ? "complete" : tab === "shipments" ? "current" : "upcoming",
+      },
+      {
+        label: "Weekly Report",
+        status: tab === "weekly-reports" ? "current" : "upcoming",
       },
       { label: "Reconcile", status: tab === "reconciliation" ? "current" : "upcoming" },
     ] as const;
-  }, [allocationLocked, contractShipments.length, tab]);
+  }, [allocationLocked, contractShipments.length, contractSubContracts.length, tab]);
 
   if (!contract) {
     return (
@@ -110,26 +164,16 @@ export default function ContractDetailPage() {
     );
   }
 
-  const handleAddAllocation = () => {
-    setAllocationDraft((prev) => [
-      ...prev,
-      {
-        id: `a-${Date.now()}`,
-        contractId,
-        countryOfOrigin: "India",
-        factory: "",
-        allocatedQtyKgs: 0,
-      },
-    ]);
-  };
-
   const handleConfirmAllocation = () => {
-    updateAllocations(contractId, allocationDraft);
-    setAllocationLocked(true);
+    const nextLines = allocationDraft.map((line) => ({
+      ...line,
+      isAllocationConfirmed: true,
+    }));
+    updateSubContracts(contractId, nextLines);
     setConfirmOpen(false);
     pushToast({
-      title: "Allocation confirmed",
-      description: "Allocation locked. Next: Add shipments",
+      title: "Allocation Confirmed",
+      description: "Allocated quantities locked for shipments",
       variant: "success",
     });
   };
@@ -145,42 +189,66 @@ export default function ContractDetailPage() {
       return;
     }
 
+    const selectedSub = contractSubContracts.find(
+      (line) => line.id === shipmentValues.subContractId
+    );
+    if (!selectedSub) {
+      setShipmentErrors({ subContractId: "Sub-contract is required" });
+      return;
+    }
+
+    const shippedQty = contractShipments
+      .filter((shipment) => shipment.subContractId === selectedSub.id)
+      .reduce((sum, shipment) => sum + shipment.qtyShippedKgs, 0);
+
+    const nextQty = Number(shipmentValues.qtyShippedKgs);
+    const remaining = selectedSub.allocatedQtyKgs - shippedQty;
+
+    if (nextQty > remaining) {
+      setShipmentErrors({
+        qtyShippedKgs: "Qty shipped exceeds remaining open qty",
+      });
+      return;
+    }
+
     addShipment({
-      id: `s-${Date.now()}`,
-      contractId,
+      id: `sh-${Date.now()}`,
+      masterContractId: contractId,
+      subContractId: selectedSub.id,
+      countryOfOrigin: selectedSub.countryOfOrigin,
+      factory: shipmentValues.factory,
+      shipmentStatus: "Draft",
       containerNumber: shipmentValues.containerNumber,
       linerSealNumber: shipmentValues.linerSealNumber,
-      factory: shipmentValues.factory,
-      shippedDate: "",
+      shippedDate: shipmentValues.shippedDate,
       blNo: shipmentValues.blNo,
       vesselName: shipmentValues.vesselName,
       voyageDetails: shipmentValues.voyageDetails,
       scacCode: shipmentValues.scacCode,
       bookingNumber: shipmentValues.bookingNumber,
       etaDestination: shipmentValues.etaDestination,
-      qtyShippedKgs: Number(shipmentValues.qtyShippedKgs),
-      updatedIspPortal: "No",
+      qtyShippedKgs: nextQty,
+      updatedIspPortal: false,
       comments: shipmentValues.comments,
-      note: "",
-      remark: "",
-      status: "Planned",
+      note: shipmentValues.note,
+      remark: shipmentValues.remark,
     });
 
     setShipmentErrors({});
     setShipmentOpen(false);
     pushToast({
-      title: "Shipment created",
-      description: "Shipment advice line added",
+      title: "Shipment added",
+      description: "Shipment advice record saved",
       variant: "success",
     });
   };
 
   const handleMarkShipped = () => {
     if (selectedShipment) {
-      markShipmentShipped(selectedShipment.id, new Date().toISOString().slice(0, 10));
+      markShipmentShipped(selectedShipment.id);
       pushToast({
-        title: "Shipment updated",
-        description: "Shipment marked as shipped",
+        title: "Shipment marked as shipped",
+        description: "Master totals updated",
         variant: "success",
       });
       setSelectedShipment(null);
@@ -201,14 +269,14 @@ export default function ContractDetailPage() {
             <div>
               <h1 className="text-xl font-semibold">{contract.contractNumber}</h1>
               <p className="text-sm text-muted-foreground">
-                {contract.grade} • {contract.shipmentPeriod}
+                {contract.gradeName} • {contract.shipmentPeriod}
               </p>
             </div>
             <div className="flex items-center gap-3">
               <StatusBadge status={contract.status} />
               {tab === "overview" && (
-                <Button onClick={() => router.push(`/contracts/${contractId}?tab=allocation`)}>
-                  Next: Allocate
+                <Button onClick={() => router.push(`/contracts/${contractId}?tab=sub-contracts`)}>
+                  Next: Sub-Contracts
                 </Button>
               )}
             </div>
@@ -225,7 +293,9 @@ export default function ContractDetailPage() {
               <p className="text-2xl font-semibold">
                 {formatNumber(contract.openQty)} KGS
               </p>
-              <p className="text-xs text-muted-foreground">{formatCurrency(contract.openValue)}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatCurrency(contract.openValue)}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -236,7 +306,9 @@ export default function ContractDetailPage() {
               <p className="text-2xl font-semibold">
                 {formatNumber(contract.shippedQuantityKgs)} KGS
               </p>
-              <p className="text-xs text-muted-foreground">{contract.allocationSummary}</p>
+              <p className="text-xs text-muted-foreground">
+                {contract.allocationSummary}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -253,13 +325,7 @@ export default function ContractDetailPage() {
         </div>
 
         <div className="flex flex-wrap gap-2 border-b pb-2 text-sm">
-          {[
-            { label: "Overview", value: "overview" },
-            { label: "Allocation", value: "allocation" },
-            { label: "Shipments", value: "shipments" },
-            { label: "Reconciliation", value: "reconciliation" },
-            { label: "Activity Log", value: "activity" },
-          ].map((tabItem) => (
+          {tabs.map((tabItem) => (
             <Button
               key={tabItem.value}
               variant={tab === tabItem.value ? "default" : "ghost"}
@@ -276,29 +342,33 @@ export default function ContractDetailPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <p className="text-xs uppercase text-muted-foreground">Contract Summary</p>
-                  <p className="mt-2 text-sm">Total Quantity: {formatNumber(contract.totalContractQuantityKgs)} KGS</p>
+                  <p className="mt-2 text-sm">
+                    Total Quantity: {formatNumber(contract.totalContractQuantityKgs)} KGS
+                  </p>
                   <p className="text-sm">Total Value: {formatCurrency(contract.totalContractValue)}</p>
-                  <p className="text-sm">Open Book Qty: {formatNumber(contract.openBookQty)}</p>
+                  <p className="text-sm">
+                    Open Book Qty: {formatNumber(contract.openBookQty)}
+                  </p>
+                  <p className="text-sm">
+                    Open Book Value: {formatCurrency(contract.openBookValue)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs uppercase text-muted-foreground">Allocation Summary</p>
                   <p className="mt-2 text-sm">{contract.allocationSummary}</p>
-                  <p className="text-sm">Country of Origin: {contract.countryOfOrigin}</p>
-                  <p className="text-sm">Factory: {contract.factory}</p>
+                  <p className="text-sm">Buyer Contract: {contract.rcnContractNumber}</p>
+                  <p className="text-sm">Status: {contract.status}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {tab === "allocation" && (
+        {tab === "sub-contracts" && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Allocation Editor</CardTitle>
+              <CardTitle>Sub-Contract Allocation</CardTitle>
               <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={handleAddAllocation} disabled={allocationLocked}>
-                  Add Line
-                </Button>
                 <Button
                   onClick={() => setConfirmOpen(true)}
                   disabled={allocationLocked || allocationTotal !== contract.totalContractQuantityKgs}
@@ -309,57 +379,33 @@ export default function ContractDetailPage() {
             </CardHeader>
             <CardContent>
               <div className="mb-4 text-sm text-muted-foreground">
-                Total Contract Qty: {formatNumber(contract.totalContractQuantityKgs)} KGS | Allocated: {formatNumber(allocationTotal)} KGS | Remaining: {formatNumber(allocationRemaining)} KGS
+                Total Contract Qty: {formatNumber(contract.totalContractQuantityKgs)} KGS | Allocated: {formatNumber(allocationTotal)} KGS
               </div>
+              {allocationTotal !== contract.totalContractQuantityKgs && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-700">
+                  Allocation must equal the master contract quantity to confirm.
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Country of Origin</TableHead>
-                    <TableHead>Factory</TableHead>
+                    <TableHead>Sub-Contract</TableHead>
+                    <TableHead>Country</TableHead>
+                    <TableHead>Price/KG</TableHead>
                     <TableHead>Allocated Qty (KGS)</TableHead>
+                    <TableHead>Value (USD)</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {allocationDraft.map((line, index) => (
                     <TableRow key={line.id}>
                       <TableCell>
-                        <Select
-                          value={line.countryOfOrigin}
-                          onValueChange={(value) =>
-                            setAllocationDraft((prev) =>
-                              prev.map((item, itemIndex) =>
-                                itemIndex === index
-                                  ? { ...item, countryOfOrigin: value as AllocationLine["countryOfOrigin"] }
-                                  : item
-                              )
-                            )
-                          }
-                          disabled={allocationLocked}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="India">India</SelectItem>
-                            <SelectItem value="Vietnam">Vietnam</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <p className="text-sm font-medium">{line.subContractNumber}</p>
+                        <p className="text-xs text-muted-foreground">Factory: {line.factory ?? ""}</p>
                       </TableCell>
-                      <TableCell>
-                        <Input
-                          value={line.factory ?? ""}
-                          onChange={(event) =>
-                            setAllocationDraft((prev) =>
-                              prev.map((item, itemIndex) =>
-                                itemIndex === index
-                                  ? { ...item, factory: event.target.value }
-                                  : item
-                              )
-                            )
-                          }
-                          disabled={allocationLocked}
-                        />
-                      </TableCell>
+                      <TableCell>{line.countryOfOrigin}</TableCell>
+                      <TableCell>${line.contractPriceUsdKgs.toFixed(2)}</TableCell>
                       <TableCell>
                         <Input
                           type="number"
@@ -375,6 +421,10 @@ export default function ContractDetailPage() {
                           }
                           disabled={allocationLocked}
                         />
+                      </TableCell>
+                      <TableCell>{formatCurrency(line.allocatedQtyKgs * line.contractPriceUsdKgs)}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={line.isAllocationConfirmed ? "Open" : "Draft"} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -399,12 +449,65 @@ export default function ContractDetailPage() {
               <CardTitle>Shipment Advice</CardTitle>
               <Button onClick={() => setShipmentOpen(true)}>Create Shipment</Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-3">
+                <Select
+                  value={shipmentFilters.country}
+                  onValueChange={(value) =>
+                    setShipmentFilters((prev) => ({ ...prev, country: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Countries</SelectItem>
+                    <SelectItem value="India">India</SelectItem>
+                    <SelectItem value="Vietnam">Vietnam</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={shipmentFilters.factory}
+                  onValueChange={(value) =>
+                    setShipmentFilters((prev) => ({ ...prev, factory: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Factory" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Factories</SelectItem>
+                    <SelectItem value="Mysuru Co-Op">Mysuru Co-Op</SelectItem>
+                    <SelectItem value="Da Nang Origin">Da Nang Origin</SelectItem>
+                    <SelectItem value="Kerala Beans">Kerala Beans</SelectItem>
+                    <SelectItem value="Hanoi Harvest">Hanoi Harvest</SelectItem>
+                    <SelectItem value="Coorg Estates">Coorg Estates</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={shipmentFilters.status}
+                  onValueChange={(value) =>
+                    setShipmentFilters((prev) => ({ ...prev, status: value }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="Draft">Draft</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Shipped">Shipped</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Container</TableHead>
-                    <TableHead>Factory</TableHead>
+                    <TableHead>Shipment</TableHead>
+                    <TableHead>Sub-Contract</TableHead>
                     <TableHead>Qty</TableHead>
                     <TableHead>ETA</TableHead>
                     <TableHead>Status</TableHead>
@@ -412,17 +515,19 @@ export default function ContractDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contractShipments.map((shipment) => (
+                  {filteredShipments.map((shipment) => (
                     <TableRow key={shipment.id}>
                       <TableCell>
                         <p className="text-sm font-medium">{shipment.containerNumber}</p>
                         <p className="text-xs text-muted-foreground">{shipment.blNo}</p>
                       </TableCell>
-                      <TableCell>{shipment.factory}</TableCell>
+                      <TableCell>
+                        {subContractLookup.get(shipment.subContractId)?.subContractNumber ?? shipment.subContractId}
+                      </TableCell>
                       <TableCell>{formatNumber(shipment.qtyShippedKgs)}</TableCell>
                       <TableCell>{shipment.etaDestination}</TableCell>
                       <TableCell>
-                        <StatusBadge status={shipment.status} />
+                        <StatusBadge status={shipment.shipmentStatus} />
                       </TableCell>
                       <TableCell>
                         <Button
@@ -437,6 +542,24 @@ export default function ContractDetailPage() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        )}
+
+        {tab === "weekly-reports" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Weekly Report History</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              {emailLog.slice(0, 4).map((log) => (
+                <div key={log.id} className="rounded-md border border-dashed p-3">
+                  {log.fileName} · {log.buyer} · {log.status}
+                </div>
+              ))}
+              <Button variant="outline" asChild>
+                <Link href="/reports/weekly-shipments">Open Weekly Reports</Link>
+              </Button>
             </CardContent>
           </Card>
         )}
@@ -460,13 +583,13 @@ export default function ContractDetailPage() {
             <CardContent className="pt-6 text-sm text-muted-foreground">
               <div className="space-y-3">
                 <div className="rounded-md border border-dashed p-3">
-                  Allocation confirmed by Priya Das · 2 days ago
+                  Sub-contracts auto-created · system · 2 days ago
                 </div>
                 <div className="rounded-md border border-dashed p-3">
-                  Shipment advice added by Logistics Ops · 1 day ago
+                  Allocation confirmed by S&OP · yesterday
                 </div>
                 <div className="rounded-md border border-dashed p-3">
-                  Weekly report sent to buyer · today
+                  Shipment advice added by Logistics Ops · today
                 </div>
               </div>
             </CardContent>
@@ -476,7 +599,7 @@ export default function ContractDetailPage() {
 
       <ConfirmDialog
         title="Confirm allocation"
-        description="Confirming allocation will lock the editor for Phase-1 workflow."
+        description="Confirming allocation will lock the sub-contract quantities for Phase-1 workflow."
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         onConfirm={handleConfirmAllocation}
@@ -484,6 +607,30 @@ export default function ContractDetailPage() {
 
       <DrawerForm title="Create Shipment" open={shipmentOpen} onOpenChange={setShipmentOpen}>
         <div className="grid gap-4 md:grid-cols-2">
+          <FormField label="Sub-Contract" error={shipmentErrors.subContractId}>
+            <Select
+              value={shipmentValues.subContractId}
+              onValueChange={(value) =>
+                setShipmentValues((prev) => ({
+                  ...prev,
+                  subContractId: value,
+                  factory:
+                    contractSubContracts.find((line) => line.id === value)?.factory ?? "",
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select sub-contract" />
+              </SelectTrigger>
+              <SelectContent>
+                {contractSubContracts.map((line) => (
+                  <SelectItem key={line.id} value={line.id}>
+                    {line.subContractNumber} ({line.countryOfOrigin})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
           <FormField label="Container Number" error={shipmentErrors.containerNumber}>
             <Input
               value={shipmentValues.containerNumber}
@@ -505,6 +652,15 @@ export default function ContractDetailPage() {
               value={shipmentValues.factory}
               onChange={(event) =>
                 setShipmentValues((prev) => ({ ...prev, factory: event.target.value }))
+              }
+            />
+          </FormField>
+          <FormField label="Shipped Date" error={shipmentErrors.shippedDate}>
+            <Input
+              type="date"
+              value={shipmentValues.shippedDate}
+              onChange={(event) =>
+                setShipmentValues((prev) => ({ ...prev, shippedDate: event.target.value }))
               }
             />
           </FormField>
@@ -575,6 +731,22 @@ export default function ContractDetailPage() {
             }
           />
         </FormField>
+        <FormField label="Note">
+          <Textarea
+            value={shipmentValues.note}
+            onChange={(event) =>
+              setShipmentValues((prev) => ({ ...prev, note: event.target.value }))
+            }
+          />
+        </FormField>
+        <FormField label="Remark">
+          <Textarea
+            value={shipmentValues.remark}
+            onChange={(event) =>
+              setShipmentValues((prev) => ({ ...prev, remark: event.target.value }))
+            }
+          />
+        </FormField>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => setShipmentOpen(false)}>
             Cancel
@@ -611,9 +783,9 @@ export default function ContractDetailPage() {
             <div className="flex items-center justify-between rounded-lg border bg-muted/40 p-3">
               <div>
                 <p className="text-xs text-muted-foreground">Status</p>
-                <StatusBadge status={selectedShipment.status} />
+                <StatusBadge status={selectedShipment.shipmentStatus} />
               </div>
-              {selectedShipment.status === "Planned" && (
+              {selectedShipment.shipmentStatus !== "Shipped" && (
                 <Button onClick={handleMarkShipped}>Mark Shipped</Button>
               )}
             </div>

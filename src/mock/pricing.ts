@@ -1,0 +1,132 @@
+import type { PricingMaster } from "@/types";
+
+export const pricingMaster: PricingMaster[] = [
+  {
+    id: "pm-001",
+    gradeId: "g1",
+    countryId: "India",
+    contractPriceUsdKgs: 3.15,
+    contractPriceUsdMt: 3150,
+    contractPriceUsdLbs: 1.43,
+    effectiveFrom: "2024-01-01",
+    isActive: true,
+    notes: "Premium Arabica - India",
+  },
+  {
+    id: "pm-002",
+    gradeId: "g1",
+    countryId: "Vietnam",
+    contractPriceUsdKgs: 3.05,
+    contractPriceUsdMt: 3050,
+    contractPriceUsdLbs: 1.38,
+    effectiveFrom: "2024-01-01",
+    isActive: true,
+    notes: "Premium Arabica - Vietnam",
+  },
+  {
+    id: "pm-003",
+    gradeId: "g2",
+    countryId: "India",
+    contractPriceUsdKgs: 2.95,
+    contractPriceUsdMt: 2950,
+    contractPriceUsdLbs: 1.34,
+    effectiveFrom: "2024-01-01",
+    isActive: true,
+  },
+  {
+    id: "pm-004",
+    gradeId: "g2",
+    countryId: "Vietnam",
+    contractPriceUsdKgs: 2.85,
+    contractPriceUsdMt: 2850,
+    contractPriceUsdLbs: 1.29,
+    effectiveFrom: "2024-01-01",
+    isActive: true,
+  },
+  {
+    id: "pm-005",
+    gradeId: "g3",
+    countryId: "India",
+    contractPriceUsdKgs: 2.75,
+    contractPriceUsdMt: 2750,
+    contractPriceUsdLbs: 1.25,
+    effectiveFrom: "2024-02-01",
+    isActive: true,
+  },
+  {
+    id: "pm-006",
+    gradeId: "g3",
+    countryId: "Vietnam",
+    contractPriceUsdKgs: 2.68,
+    contractPriceUsdMt: 2680,
+    contractPriceUsdLbs: 1.21,
+    effectiveFrom: "2024-02-01",
+    isActive: true,
+  },
+  {
+    id: "pm-007",
+    gradeId: "g4",
+    countryId: "India",
+    contractPriceUsdKgs: 2.55,
+    contractPriceUsdMt: 2550,
+    contractPriceUsdLbs: 1.16,
+    effectiveFrom: "2024-01-15",
+    isActive: true,
+  },
+  {
+    id: "pm-008",
+    gradeId: "g4",
+    countryId: "Vietnam",
+    contractPriceUsdKgs: 2.45,
+    contractPriceUsdMt: 2450,
+    contractPriceUsdLbs: 1.11,
+    effectiveFrom: "2024-01-15",
+    isActive: true,
+  },
+  {
+    id: "pm-009",
+    gradeId: "g5",
+    countryId: "India",
+    contractPriceUsdKgs: 2.35,
+    contractPriceUsdMt: 2350,
+    contractPriceUsdLbs: 1.07,
+    effectiveFrom: "2024-02-10",
+    isActive: true,
+  },
+  {
+    id: "pm-010",
+    gradeId: "g5",
+    countryId: "Vietnam",
+    contractPriceUsdKgs: 2.28,
+    contractPriceUsdMt: 2280,
+    contractPriceUsdLbs: 1.03,
+    effectiveFrom: "2024-02-10",
+    isActive: true,
+  },
+];
+
+export const gradeCatalog = [
+  { id: "g1", name: "Arabica G1" },
+  { id: "g2", name: "Arabica G2" },
+  { id: "g3", name: "Arabica G3" },
+  { id: "g4", name: "Robusta G1" },
+  { id: "g5", name: "Robusta G2" },
+];
+
+export const countryCatalog: Array<"India" | "Vietnam"> = ["India", "Vietnam"];
+
+export const factoryCatalog = [
+  "Mysuru Co-Op",
+  "Da Nang Origin",
+  "Kerala Beans",
+  "Hanoi Harvest",
+  "Coorg Estates",
+  "Ho Chi Minh Collectives",
+];
+
+export const buyerCatalog = [
+  "Nordic Roasters",
+  "Blue River Coffee",
+  "Atlas Trading",
+  "Cedar Espresso",
+];
