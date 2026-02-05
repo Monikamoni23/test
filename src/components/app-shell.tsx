@@ -19,6 +19,7 @@ const navItems = [
   { href: "/reconciliation", label: "Reconciliation", icon: Activity },
   { href: "/reports/weekly-shipments", label: "Weekly Reports", icon: ClipboardList },
   { href: "/settings/master-data", label: "Master Data", icon: Settings },
+  { href: "/settings/pricing", label: "Pricing Master", icon: Settings },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -67,7 +68,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="text-xs text-muted-foreground">Olivia Chen</div>
           </div>
         </header>
-        <main className="flex-1 px-8 py-6">{children}</main>
+        <main className="flex-1 px-8 py-6 animate-fade-up">{children}</main>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ interface Column<T> {
   key: string;
   header: string;
   render: (row: T) => React.ReactNode;
+  sortValue?: (row: T) => string | number;
 }
 
 interface DataTableProps<T> {
@@ -30,6 +31,8 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const filtered = useMemo(() => {
     if (!query.trim()) return data;
@@ -39,8 +42,23 @@ export function DataTable<T>({
     );
   }, [data, query, filterKey]);
 
-  const pageCount = Math.ceil(filtered.length / pageSize);
-  const paged = filtered.slice(page * pageSize, page * pageSize + pageSize);
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    const column = columns.find((col) => col.key === sortKey);
+    if (!column?.sortValue) return filtered;
+    const next = [...filtered].sort((a, b) => {
+      const valueA = column.sortValue?.(a);
+      const valueB = column.sortValue?.(b);
+      if (typeof valueA === "number" && typeof valueB === "number") {
+        return valueA - valueB;
+      }
+      return String(valueA).localeCompare(String(valueB));
+    });
+    return sortDirection === "asc" ? next : next.reverse();
+  }, [columns, filtered, sortDirection, sortKey]);
+
+  const pageCount = Math.ceil(sorted.length / pageSize);
+  const paged = sorted.slice(page * pageSize, page * pageSize + pageSize);
 
   return (
     <div className="space-y-4">
@@ -77,8 +95,34 @@ export function DataTable<T>({
       <Table>
         <TableHeader>
           <TableRow>
-            {columns.map((column) => (
-              <TableHead key={column.key}>{column.header}</TableHead>
+          {columns.map((column) => (
+              <TableHead key={column.key}>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                  onClick={() => {
+                    if (!column.sortValue) return;
+                    setPage(0);
+                    setSortKey((prev) => {
+                      if (prev === column.key) {
+                        setSortDirection((direction) =>
+                          direction === "asc" ? "desc" : "asc"
+                        );
+                        return prev;
+                      }
+                      setSortDirection("asc");
+                      return column.key;
+                    });
+                  }}
+                >
+                  {column.header}
+                  {sortKey === column.key && (
+                    <span className="text-[10px]">
+                      {sortDirection === "asc" ? "▲" : "▼"}
+                    </span>
+                  )}
+                </button>
+              </TableHead>
             ))}
           </TableRow>
         </TableHeader>
